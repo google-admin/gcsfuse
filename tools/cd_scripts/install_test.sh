@@ -17,7 +17,7 @@
 set -x
 
 #details.txt file contains the release version and commit hash of the current release.
-gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+gsutil cp  gs://gcsfuse-beta-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 vm_instance_name=$(curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
 echo $vm_instance_name >> details.txt
@@ -28,7 +28,7 @@ touch ~/logs.txt
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
     #  For ubuntu and debian os
-    export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
+    export GCSFUSE_REPO=gcsfuse-beta
     # Don't use apt-key for Debian 11+ and Ubuntu 21+
     if { [[ $vm_instance_name == *"debian"*  &&  !( "$vm_instance_name" < "release-test-debian-11") ]]; } || { [[ $vm_instance_name == *"ubuntu"*  && !("$vm_instance_name" < "release-test-ubuntu-21") ]]; }
     then
@@ -53,14 +53,14 @@ else
     sudo tee /etc/yum.repos.d/gcsfuse.repo > /dev/null <<EOF
 [gcsfuse]
 name=gcsfuse (packages.cloud.google.com)
-baseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64
+baseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64-beta
 enabled=1
 gpgcheck=1
 repo_gpgcheck=0
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
-sudo yum install -y gcsfuse
+sudo yum install -y --nogpgcheck gcsfuse
 fi
 
 # Verify gcsfuse version (successful installation)
@@ -97,7 +97,7 @@ if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
     sudo apt-get install --only-upgrade gcsfuse |& tee -a ~/logs.txt
 else
-    sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
+    sudo yum -y upgrade --nogpgcheck gcsfuse |& tee -a ~/logs.txt
 fi
 
 gcsfuse --version |& tee version.txt
@@ -112,8 +112,8 @@ if grep -q Failure ~/logs.txt; then
     echo "Test failed" &>> ~/logs.txt ;
 else
     touch success.txt
-    gsutil cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/   ;
+    gsutil cp success.txt gs://gcsfuse-beta-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/   ;
 fi
 
-gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/
+gsutil cp ~/logs.txt gs://gcsfuse-beta-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/
 
