@@ -140,4 +140,6 @@ type Bucket interface {
 	DeleteObject(
 		ctx context.Context,
 		req *DeleteObjectRequest) error
+
+	ParallelDownloadToFile(ctx context.Context, req *ParallelDownloadToFileRequest) error
 }

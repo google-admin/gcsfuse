@@ -24,7 +24,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"sync"
+
+	"cloud.google.com/go/storage/transfermanager"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -44,6 +48,7 @@ type bucketHandle struct {
 	bucketName    string
 	bucketType    gcs.BucketType
 	controlClient StorageControlClient
+	downloader    *transfermanager.Downloader
 }
 
 func (bh *bucketHandle) Name() string {
@@ -483,4 +488,101 @@ func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
 	return conditions != (storage.Conditions{})
+}
+
+func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) error {
+
+	if b.downloader == nil {
+		return fmt.Errorf("parallel download not suppported")
+	}
+
+	if req.PartSize == 0 {
+		return fmt.Errorf("invalid part-size")
+	}
+
+	size := req.Range.Limit - req.Range.Start
+	numParts := ((size - 1) / req.PartSize) + 1
+
+	logger.Tracef("downloading parallely from %d to %d", req.Range.Start, req.Range.Limit)
+
+	// Get a cancel function for the context and start a background goroutine
+	// to monitor for any errors, which will be sent from the callback in a
+	// channel.
+	cancelCtx, cancel := context.WithCancel(ctx)
+
+	partErrors := make(chan error)
+	done := make(chan bool)
+	var firstError error
+
+	monitorCancel := func() {
+		// Block until either all work is done, or at least one error has been
+		// received. done will eventually trigger even if work in flight is
+		// cancelled or errors.
+	out:
+		for {
+			select {
+			case <-done:
+				cancel()
+				break out
+			case err := <-partErrors:
+				// Only take the first error, but continue to drain subsequent
+				// errors from the channel (mostly context cancelled).
+				if firstError == nil {
+					firstError = err
+					cancel()
+				}
+			}
+		}
+
+	}
+	go monitorCancel()
+
+	wg := sync.WaitGroup{}
+
+	callback := func(out *transfermanager.DownloadOutput) {
+		wg.Done()
+		if out.Err != nil {
+			logger.Errorf("parallel download failed: %v", out.Err)
+		} else {
+			logger.Tracef("download succeeded at offset: %d", out.Attrs.StartOffset)
+		}
+	}
+
+	for i := uint64(0); i < numParts; i++ {
+		offset := int64(i * req.PartSize)
+		length := int64(req.PartSize)
+		if i == numParts-1 {
+			length = -1
+		}
+		w := io.NewOffsetWriter(req.FileHandle, offset)
+		in := &transfermanager.DownloadObjectInput{
+			Bucket:      b.bucketName,
+			Object:      req.Name,
+			Destination: w,
+			Range: &transfermanager.DownloadRange{
+				Offset: offset,
+				Length: length,
+			},
+			Callback: callback,
+		}
+
+		// Add download. This is non-blocking so the download will start in the
+		// background.
+		wg.Add(1)
+		err := b.downloader.DownloadObject(cancelCtx, in)
+		if err != nil {
+			log.Fatalf("DownloadObject: %v", err)
+		}
+	}
+
+	// Wait for the full download to complete.
+	wg.Wait()
+	done <- true
+
+	if firstError != nil {
+		logger.Errorf("error in parallel download: %v", firstError)
+	} else {
+		logger.Tracef("Parallel download completed successfully.")
+	}
+	return nil
 }

@@ -16,6 +16,8 @@ package config
 
 import (
 	"math"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 )
 
 const (
@@ -106,6 +108,9 @@ type FileSystemConfig struct {
 type FileCacheConfig struct {
 	MaxSizeMB             int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
+	DownloadParallelism   int   `yaml:"download-parallelism"`
+	ReadRequestSizeMB     int   `yaml:"read-request-size-mb"`
+	ThreadPoolSize        int   `yaml:"thread-pool-size"`
 }
 
 type MetadataCacheConfig struct {
@@ -173,7 +178,10 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB: DefaultFileCacheMaxSizeMB,
+		MaxSizeMB:           DefaultFileCacheMaxSizeMB,
+		DownloadParallelism: 0,
+		ReadRequestSizeMB:   50 * util.MiB,
+		ThreadPoolSize:      1000,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,
