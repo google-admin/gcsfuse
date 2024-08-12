@@ -72,6 +72,8 @@ type DebugConfig struct {
 }
 
 type FileCacheConfig struct {
+	CacheExcludeRegex string `yaml:"cache-file-exclude-regex"`
+
 	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read,omitempty"`
 
 	DownloadChunkSizeMb int64 `yaml:"download-chunk-size-mb,omitempty"`

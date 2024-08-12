@@ -79,7 +79,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig)
 
 	// Mocked cached handler object.
-	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, nil, false, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)
@@ -396,7 +396,7 @@ func Test_GetCacheHandle_WhenCacheHasDifferentGeneration(t *testing.T) {
 	// Change the version of the object, but cache still keeps old generation
 	chTestArgs.object.Generation = chTestArgs.object.Generation + 1
 
-	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, 0)
 
 	assert.NoError(t, err)
 	assert.Nil(t, newCacheHandle.validateCacheHandle())
@@ -418,7 +418,7 @@ func Test_GetCacheHandle_WhenAsyncDownloadJobHasFailed(t *testing.T) {
 	require.Equal(t, downloader.Failed, jobStatus.Name)
 	chTestArgs.object.Size = correctSize
 
-	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, 0)
 
 	// New job should be created because the earlier job has failed.
 	assert.NoError(t, err)
@@ -434,7 +434,7 @@ func Test_GetCacheHandle_WhenFileInfoAndJobAreAlreadyPresent(t *testing.T) {
 	// File info and download job are already present for test object.
 	existingJob := getDownloadJobForTestObject(t, chTestArgs)
 
-	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, 0)
 
 	assert.NoError(t, err)
 	assert.Nil(t, cacheHandle.validateCacheHandle())
@@ -450,7 +450,7 @@ func Test_GetCacheHandle_WhenFileInfoAndJobAreNotPresent(t *testing.T) {
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 	minObject := createObject(t, chTestArgs.bucket, "object_1", []byte("content of object_1"))
 
-	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, false, 0)
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, 0)
 
 	assert.NoError(t, err)
 	assert.Nil(t, cacheHandle.validateCacheHandle())
@@ -489,7 +489,7 @@ func Test_GetCacheHandle_WithEviction(t *testing.T) {
 			// Here, content size is 21.
 			minObject := createObject(t, chTestArgs.bucket, "object_1", []byte("content of object_1 ..."))
 
-			cacheHandle2, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, false, 0)
+			cacheHandle2, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, 0)
 
 			assert.NoError(t, err)
 			assert.Nil(t, cacheHandle2.validateCacheHandle())
@@ -508,7 +508,7 @@ func Test_GetCacheHandle_IfLocalFileGetsDeleted(t *testing.T) {
 	require.NoError(t, err)
 	existingJob := getDownloadJobForTestObject(t, chTestArgs)
 
-	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, 0)
 
 	assert.ErrorContains(t, err, util.FileNotPresentInCacheErrMsg)
 	assert.Nil(t, cacheHandle)
@@ -540,14 +540,16 @@ func Test_GetCacheHandle_CacheForRangeRead(t *testing.T) {
 	for _, tc := range tbl {
 		t.Run(tc.name, func(t *testing.T) {
 			chTestArgs := initializeCacheHandlerTestArgs(t, &tc.fileCacheConfig, tc.cacheDir)
+			chTestArgs.cacheHandler.cacheFileForRangeRead = false
 			minObject1 := createObject(t, chTestArgs.bucket, "object_1", []byte("content of object_1 ..."))
-			cacheHandle1, err1 := chTestArgs.cacheHandler.GetCacheHandle(minObject1, chTestArgs.bucket, false, 0)
+			cacheHandle1, err1 := chTestArgs.cacheHandler.GetCacheHandle(minObject1, chTestArgs.bucket, 0)
 			minObject2 := createObject(t, chTestArgs.bucket, "object_2", []byte("content of object_2 ..."))
-			cacheHandle2, err2 := chTestArgs.cacheHandler.GetCacheHandle(minObject2, chTestArgs.bucket, false, 5)
+			cacheHandle2, err2 := chTestArgs.cacheHandler.GetCacheHandle(minObject2, chTestArgs.bucket, 5)
+			chTestArgs.cacheHandler.cacheFileForRangeRead = true
 			minObject3 := createObject(t, chTestArgs.bucket, "object_3", []byte("content of object_3 ..."))
-			cacheHandle3, err3 := chTestArgs.cacheHandler.GetCacheHandle(minObject3, chTestArgs.bucket, true, 0)
+			cacheHandle3, err3 := chTestArgs.cacheHandler.GetCacheHandle(minObject3, chTestArgs.bucket, 0)
 			minObject4 := createObject(t, chTestArgs.bucket, "object_4", []byte("content of object_4 ..."))
-			cacheHandle4, err4 := chTestArgs.cacheHandler.GetCacheHandle(minObject4, chTestArgs.bucket, true, 5)
+			cacheHandle4, err4 := chTestArgs.cacheHandler.GetCacheHandle(minObject4, chTestArgs.bucket, 5)
 
 			assert.NoError(t, err1)
 			assert.Nil(t, cacheHandle1.validateCacheHandle())
@@ -592,7 +594,7 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 				minObj := createObject(t, chTestArgs.bucket, testObjectName, []byte("content of object_1 ..."))
 
 				var err error
-				cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
+				cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, 0)
 
 				assert.NoError(t, err)
 				assert.Nil(t, cacheHandle.validateCacheHandle())
@@ -628,7 +630,7 @@ func Test_GetCacheHandle_ConcurrentDifferentFiles(t *testing.T) {
 		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := createObject(t, chTestArgs.bucket, objName, []byte(objContent))
 
-		cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
+		cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, 0)
 
 		assert.NoError(t, err)
 		assert.Nil(t, cacheHandle.validateCacheHandle())
@@ -715,7 +717,7 @@ func Test_InvalidateCache_Truncates(t *testing.T) {
 			chTestArgs := initializeCacheHandlerTestArgs(t, &tc.fileCacheConfig, tc.cacheDir)
 			objectContent := []byte("content of object_1")
 			minObject := createObject(t, chTestArgs.bucket, "object_1", objectContent)
-			cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, false, 0)
+			cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, 0)
 			require.NoError(t, err)
 			buf := make([]byte, 3)
 			ctx := context.Background()
@@ -888,7 +890,7 @@ func Test_InvalidateCache_GetCacheHandle_Concurrent(t *testing.T) {
 				objContent := "object content: content#" + strconv.Itoa(index)
 				minObj := createObject(t, chTestArgs.bucket, objName, []byte(objContent))
 
-				cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
+				cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, 0)
 
 				assert.NoError(t, err)
 				assert.Nil(t, cacheHandle.validateCacheHandle())
@@ -938,9 +940,9 @@ func Test_Destroy(t *testing.T) {
 			chTestArgs := initializeCacheHandlerTestArgs(t, &tc.fileCacheConfig, tc.cacheDir)
 			minObject1 := createObject(t, chTestArgs.bucket, "object_1", []byte("content of object_1"))
 			minObject2 := createObject(t, chTestArgs.bucket, "object_2", []byte("content of object_2"))
-			cacheHandle1, err := chTestArgs.cacheHandler.GetCacheHandle(minObject1, chTestArgs.bucket, true, 0)
+			cacheHandle1, err := chTestArgs.cacheHandler.GetCacheHandle(minObject1, chTestArgs.bucket, 0)
 			require.NoError(t, err)
-			cacheHandle2, err := chTestArgs.cacheHandler.GetCacheHandle(minObject2, chTestArgs.bucket, true, 0)
+			cacheHandle2, err := chTestArgs.cacheHandler.GetCacheHandle(minObject2, chTestArgs.bucket, 0)
 			require.NoError(t, err)
 			ctx := context.Background()
 			// Read to create and populate file in cache.

@@ -43,6 +43,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, "", string(mountConfig.CacheDir))
 	assert.Equal(t, int64(-1), mountConfig.FileCacheConfig.MaxSizeMB)
 	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
+	assert.Equal(t, "", mountConfig.FileCacheConfig.CacheExcludeRegex)
 	assert.False(t, mountConfig.FileCacheConfig.EnableParallelDownloads)
 	assert.Equal(t, 16, mountConfig.FileCacheConfig.ParallelDownloadsPerFile)
 	assert.GreaterOrEqual(t, mountConfig.FileCacheConfig.MaxParallelDownloads, 16)
