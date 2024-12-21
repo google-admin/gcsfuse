@@ -467,6 +467,52 @@ func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectR
 	return
 }
 
+func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	var o *gcs.Object
+	var err error
+
+	obj := bh.bucket.Object(req.SrcObject)
+
+	// Switching to the requested generation of source object.
+	if req.SrcGeneration != 0 {
+		obj = obj.Generation(req.SrcGeneration)
+	}
+
+	// Putting a condition that the metaGeneration of source should match *req.SrcMetaGenerationPrecondition for copy operation to occur.
+	if req.SrcMetaGenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
+	}
+
+	dstMoveObject := storage.MoveObjectDestination{
+		Object:     req.DestObject,
+		Conditions: nil,
+	}
+
+	attrs, err := obj.Move(ctx, dstMoveObject)
+	if err == nil {
+		// Converting objAttrs to type *Object
+		o = storageutil.ObjectAttrsToBucketObject(attrs)
+	}
+	//obj := bh.bucket.Object(req.SrcObject)
+
+	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
+	switch ee := err.(type) {
+	case *googleapi.Error:
+		if ee.Code == http.StatusPreconditionFailed {
+			err = &gcs.PreconditionError{Err: ee}
+		}
+	default:
+		if err == storage.ErrObjectNotExist {
+			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+		} else {
+			err = fmt.Errorf("error in updating object: %w", err)
+		}
+	}
+
+	return o, nil
+}
+
 func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	dstObj := bh.bucket.Object(req.DstName)
 

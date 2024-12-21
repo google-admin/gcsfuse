@@ -1993,7 +1993,30 @@ func (fs *fileSystem) Rename(
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
+	if child.Bucket.BucketType() == gcs.Hierarchical {
+		return fs.renameFileInHierarchicalBucket(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+	}
 	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+}
+
+func (fs *fileSystem) renameFileInHierarchicalBucket(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
+	oldParent.Lock()
+	defer oldParent.Unlock()
+
+	if newParent != oldParent {
+		newParent.Lock()
+		defer newParent.Unlock()
+	}
+
+	//oldFileName := inode.NewFileName(oldParent.Name(), oldName)
+	newFileName := inode.NewFileName(newParent.Name(), newName)
+
+	_, err := oldParent.RenameFile(ctx, oldObject, newFileName.GcsObjectName())
+	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
+		return fmt.Errorf("renameFile: while invalidating cache for delete file: %w", err)
+	}
+
+	return err
 }
 
 // LOCKS_EXCLUDED(fs.mu)

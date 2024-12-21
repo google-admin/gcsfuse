@@ -173,6 +173,13 @@ func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string,
 	return
 }
 
+func (mb *monitoringBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	startTime := time.Now()
+	o, err := mb.wrapped.MoveObject(ctx, req)
+	recordRequest(ctx, mb.metricHandle, "MoveObject", startTime)
+	return o, err
+}
+
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMethod string) {
 	metricHandle.GCSReaderCount(ctx, 1, []common.MetricAttr{{Key: common.IOMethod, Value: ioMethod}})
