@@ -2512,6 +2512,7 @@ func (fs *fileSystem) ReadFile(
 
 	// Serve the read.
 	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	// op.BytesRead = len(op.Dst)
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {

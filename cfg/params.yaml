@@ -201,6 +201,13 @@
     will throw error.
   default: "0"
 
+- config-path: "file-system.max-read-ahead-kb"
+  flag-name: "max-read-ahead-kb"
+  type: "int"
+  usage: "Max read ahead in KiB by kernel while performing reads."
+  default: "1024"
+  hide-flag: true
+
 - config-path: "file-system.precondition-errors"
   flag-name: "precondition-errors"
   type: "bool"

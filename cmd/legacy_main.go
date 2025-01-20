@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
@@ -185,6 +186,26 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	}
 
 	return
+}
+
+func increaseReadAhead(mountPoint string, readAheadKb int) error {
+	cmd := exec.Command("mountpoint", "-d", mountPoint)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("error executing mountpoint command on target path %s: %v", mountPoint, err)
+		return err
+	}
+
+	outputStr := strings.TrimSpace(string(output))
+	cmd = exec.Command("sh", "-c", fmt.Sprintf("echo %d | sudo -n tee /sys/class/bdi/%s/read_ahead_kb", readAheadKb, outputStr), ">", "/dev/null")
+
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("error increasing the read ahead on target path %s: %v", mountPoint, err)
+		return err
+	}
+
+	return nil
 }
 
 func populateArgs(args []string) (
@@ -441,6 +462,16 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			}
 		}
 		markSuccessfulMount()
+		
+		if newConfig.FileSystem.MaxReadAheadKb != 0 {
+			err = increaseReadAhead(mountPoint, 1024)
+			if err != nil {
+				logger.Infof("Failed to increase the read ahead: %v", err)
+			} else {
+				logger.Infof("Read ahead increased to %d KB successfully.", newConfig.FileSystem.MaxReadAheadKb)
+			}
+		}
+		
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
