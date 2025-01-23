@@ -15,28 +15,61 @@
 package streaming_writes
 
 import (
+	"log"
 	"testing"
 
+	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestStreamingWritesObjectWriterThrottled(t *testing.T) {
-	flags := []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	defer setup.UnmountGCSFuse(rootDir)
+// //////////////////////////////////////////////////////////////////////
+// Boilerplate
+// //////////////////////////////////////////////////////////////////////
+
+type uploadFailureTestSuite struct {
+	suite.Suite
+	flags []string
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *uploadFailureTestSuite) SetupSuite() {
+	configPath := "./proxy_server/configs/upload_failure_return503_after_256KiB.yaml"
+	emulator_tests.StartProxyServer(configPath)
+
+}
+
+func (t *uploadFailureTestSuite) TearDownSuite() {
+	setup.UnmountGCSFuse(rootDir)
+	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(port))
+	log.Printf("Test log: %s\n", setup.LogFile())
+}
+
+func (t *uploadFailureTestSuite) TestStreamingWritesObjectWriterThrottled() {
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--custom-endpoint=" + proxyEndpoint}
+	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 	data, err := operations.GenerateRandomData(2 * 1024 * 1024)
 	if err != nil {
-		t.Fatalf("Error in generating data: %v", err)
+		t.T().Fatalf("Error in generating data: %v", err)
 	}
 
 	// Write data to file.
-	operations.WriteAt(string(data[:]), 0, fh, t)
+	operations.WriteAt(string(data[:]), 0, fh, t.T())
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, string(data[:]), t)
+		FileName1, string(data[:]), t.T())
+}
+
+func TestUploadFailureTestSuite(t *testing.T) {
+	suite.Run(t, new(uploadFailureTestSuite))
 }
