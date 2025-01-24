@@ -16,6 +16,7 @@ package storage
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -276,9 +277,12 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
-	controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
-	if err != nil {
-		return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
+	log.Printf("ClientConfig.CustomEndpoint: %v", clientConfig.CustomEndpoint)
+	if clientConfig.CustomEndpoint == "" {
+		controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
+		}
 	}
 
 	sh = &storageClient{

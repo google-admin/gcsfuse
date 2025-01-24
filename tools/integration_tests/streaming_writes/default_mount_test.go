@@ -15,6 +15,7 @@
 package streaming_writes
 
 import (
+	"log"
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -28,11 +29,13 @@ type defaultMountCommonTest struct {
 }
 
 func (t *defaultMountCommonTest) SetupSuite() {
+	log.Print("Inside Setup Suite...[defaultMountCommonTest]")
 	flags := []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (t *defaultMountCommonTest) TearDownSuite() {
+	log.Print("Inside TearDown Suite...[defaultMountCommonTest]")
 	setup.UnmountGCSFuse(rootDir)
 }
