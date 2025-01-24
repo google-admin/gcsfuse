@@ -41,19 +41,22 @@ type uploadFailureTestSuite struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *uploadFailureTestSuite) SetupSuite() {
-	configPath := "./proxy_server/configs/upload_failure_return503_after_256KiB.yaml"
+	log.Print("Inside Setup Suite...[uploadFailureTestSuite]")
+	log.Printf("Test log: %s\n", setup.LogFile())
+	configPath := "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return503_after_256KiB.yaml"
 	emulator_tests.StartProxyServer(configPath)
 
 }
 
 func (t *uploadFailureTestSuite) TearDownSuite() {
+	log.Print("Inside TearDown Suite...[uploadFailureTestSuite]")
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(port))
-	log.Printf("Test log: %s\n", setup.LogFile())
 }
 
-func (t *uploadFailureTestSuite) TestStreamingWritesObjectWriterThrottled() {
-	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--custom-endpoint=" + proxyEndpoint}
+func (t *uploadFailureTestSuite) TestStreamingWritesFirstChunkUploadFails() {
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2", "--custom-endpoint=" + proxyEndpoint}
+	log.Printf("Running tests with flags: %v", t.flags)
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.

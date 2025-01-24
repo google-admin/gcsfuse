@@ -39,38 +39,6 @@ if [ "$minor_ver" -lt "$min_minor_ver" ]; then
     exit 0
 fi
 
-# Install dependencies
-# Ubuntu/Debian based machine.
-if [ -f /etc/debian_version ]; then
-  if grep -q "Ubuntu" /etc/os-release; then
-    os="ubuntu"
-  elif grep -q "Debian" /etc/os-release; then
-    os="debian"
-  fi
-
-  sudo apt-get update
-  sudo apt-get install -y ca-certificates curl
-  sudo install -m 0755 -d /etc/apt/keyrings
-  sudo curl -fsSL https://download.docker.com/linux/${os}/gpg -o /etc/apt/keyrings/docker.asc
-  sudo chmod a+r /etc/apt/keyrings/docker.asc
-  # Add the repository to Apt sources:
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${os} \
-    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  sudo apt-get install -y lsof
-# RHEL/CentOS based machine.
-elif [ -f /etc/redhat-release ]; then
-    sudo dnf -y install dnf-plugins-core
-    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-    sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    sudo usermod -aG docker $USER
-    sudo systemctl start docker
-    sudo yum -y install lsof
-fi
-
 export STORAGE_EMULATOR_HOST="http://localhost:9000"
 
 DEFAULT_IMAGE_NAME='gcr.io/cloud-devrel-public-resources/storage-testbench'
@@ -94,12 +62,6 @@ echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
 sleep 5
 
 # Stop the testbench & cleanup environment variables
-function cleanup() {
-    echo "Cleanup testbench"
-    sudo docker stop $CONTAINER_NAME
-    unset STORAGE_EMULATOR_HOST;
-}
-trap cleanup EXIT
 
 # Create the JSON file to create bucket
 cat << EOF > test.json
@@ -113,4 +75,4 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run specific test suite
-go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
