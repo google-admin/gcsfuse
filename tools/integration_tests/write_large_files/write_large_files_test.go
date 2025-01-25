@@ -54,8 +54,12 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	// TODO: remove max-blocks-per-file after the default values are set.
-	flags := [][]string{{"--enable-streaming-writes=true", "--write-max-blocks-per-file=2"}}
+	// write-global-max-blocks=2 is for checking multiple file writes in parallel.
+	// concurrent_write_files_test.go- we are writing 3 files in parallel.
+	// with this config, we are not giving 2 blocks to each file.
+	flags := [][]string{
+		{"--enable-streaming-writes=false"},
+		{"--enable-streaming-writes=true", "--write-max-blocks-per-file=2", "--write-global-max-blocks=2"}}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
