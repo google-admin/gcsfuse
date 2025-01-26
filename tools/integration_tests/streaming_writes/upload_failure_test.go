@@ -16,6 +16,7 @@ package streaming_writes
 
 import (
 	"log"
+	"os"
 	"testing"
 
 	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
@@ -43,7 +44,7 @@ type uploadFailureTestSuite struct {
 func (t *uploadFailureTestSuite) SetupSuite() {
 	log.Print("Inside Setup Suite...[uploadFailureTestSuite]")
 	log.Printf("Test log: %s\n", setup.LogFile())
-	configPath := "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return503_after_256KiB.yaml"
+	configPath := "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return400_after_256KiB.yaml"
 	emulator_tests.StartProxyServer(configPath)
 
 }
@@ -60,16 +61,26 @@ func (t *uploadFailureTestSuite) TestStreamingWritesFirstChunkUploadFails() {
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-	data, err := operations.GenerateRandomData(2 * 1024 * 1024)
+	filePath, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	data, err := operations.GenerateRandomData(4 * 1024 * 1024)
 	if err != nil {
 		t.T().Fatalf("Error in generating data: %v", err)
 	}
 
-	// Write data to file.
-	operations.WriteAt(string(data[:]), 0, fh, t.T())
+	// Write 4 MB data to file succeeds.
+	operations.WriteAt(string(data[:]), 0, fh1, t.T())
+
+	fh2, err := os.OpenFile(filePath, os.O_WRONLY, operations.FilePermission_0600)
+
+	if err != nil {
+		t.T().Fatalf("Error in opening file: %v", err)
+	}
+	// Write next 4 MB data to file fails due to 3rd chunk upload permanently fails.
+	_, err = fh2.WriteAt(data[:], 4*1024*1024)
+
+
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName,
 		FileName1, string(data[:]), t.T())
 }
 

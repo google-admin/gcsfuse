@@ -33,7 +33,7 @@ var (
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
 	// Flag to turn on fDebug logs.
 	// TODO: We can add support for specifying a log path for fDebug logs in a future update.
-	fDebug = flag.Bool("debug", false, "Enable proxy server fDebug logs.")
+	fDebug = flag.Bool("debug", true, "Enable proxy server fDebug logs.")
 	// Initialized before the server gets started.
 	gConfig    *Config
 	gOpManager *OperationManager
@@ -54,13 +54,17 @@ type ProxyHandler struct {
 //
 // This function is used to simulate error scenarios for testing retry mechanisms.
 func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
+	log.Printf("Got request at proxy server: %v", req)
 	plantOp := gOpManager.retrieveOperation(r.RequestType)
 	if plantOp != "" {
+		log.Printf("Planting Operation: %v", plantOp)
 		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
 		if err != nil {
+			log.Printf("Error creating retry test:% v", err)
 			return fmt.Errorf("CreateRetryTest: %v", err)
 		}
 		req.Header.Set("x-retry-test-id", testID)
+		log.Printf("Header has been set to Header [%v]=%v", "x-retry-test-id", testID)
 	}
 	return nil
 }
@@ -129,6 +133,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error in coping response body: %v", err)
 	}
+	log.Printf("Sending Response from proxy server: %v\n\n\n", resp)
 }
 
 // ProxyServer represents a simple proxy server over GCS storage based API endpoint.
