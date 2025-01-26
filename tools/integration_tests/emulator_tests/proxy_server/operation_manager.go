@@ -15,6 +15,7 @@
 package main
 
 import (
+	"log"
 	"sync"
 )
 
@@ -33,6 +34,7 @@ func NewOperationManager(config Config) *OperationManager {
 	}
 
 	if *fDebug {
+		log.Print("OM:")
 		println(om)
 	}
 
@@ -46,6 +48,8 @@ func (om *OperationManager) retrieveOperation(requestType RequestType) string {
 
 	configs, ok := om.retryConfigs[requestType]
 	if !ok {
+		log.Printf("Retry Config not found for RequestType: %v", requestType)
+		log.Println("Returning [] from proxy server")
 		return ""
 	}
 
@@ -53,11 +57,14 @@ func (om *OperationManager) retrieveOperation(requestType RequestType) string {
 		cc := &configs[0]
 		if cc.SkipCount > 0 {
 			cc.SkipCount--
+			log.Printf("Returning [] from proxy server because of skip count for RequestType: %v", requestType)
 			return ""
 		} else if cc.RetryCount > 0 {
 			cc.RetryCount--
+			log.Printf("Returning [%v] from proxy server for RequestType: %v", cc.RetryInstruction, requestType)
 			return cc.RetryInstruction
 		} else {
+			log.Printf("Retry Config removed for request type %v", requestType)
 			configs = configs[1:]
 			om.retryConfigs[requestType] = configs
 		}
@@ -68,6 +75,7 @@ func (om *OperationManager) retrieveOperation(requestType RequestType) string {
 func (om *OperationManager) addRetryConfig(rc RetryConfig) {
 	rt := RequestType(rc.Method)
 	if *fDebug {
+		log.Printf("addRetryConfig")
 		println(rt)
 	}
 	if om.retryConfigs[rt] != nil {

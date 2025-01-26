@@ -61,6 +61,7 @@ func parseConfigFile(configPath string) (*Config, error) {
 	}
 
 	if *fDebug {
+		log.Println("Config:")
 		printConfig(config)
 	}
 

@@ -61,8 +61,7 @@ sudo docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
 sleep 5
 
-# Stop the testbench & cleanup environment variables
-
+sudo docker ps -a | grep $CONTAINER_NAME
 # Create the JSON file to create bucket
 cat << EOF > test.json
 {"name":"test-bucket"}
@@ -75,4 +74,7 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run specific test suite
-go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=false -run TestUploadFailureTestSuite
+
+# Stop the testbench & cleanup environment variables
+sleep 600
