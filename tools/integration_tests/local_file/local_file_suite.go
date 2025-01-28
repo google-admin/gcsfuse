@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for create local file.
-
-package local_file_test
+package local_file
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/suite"
 )
 
@@ -26,14 +22,10 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type localFileTestSuite struct {
-	CommonLocalFileTestSuite
+type CommonLocalFileTestSuite struct {
+	suite.Suite
 }
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func TestLocalFileTestSuite(t *testing.T) {
-	suite.Run(t, new(localFileTestSuite))
+type localFileTestSuite struct {
+	CommonLocalFileTestSuite
 }
