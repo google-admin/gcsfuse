@@ -44,7 +44,7 @@ type uploadFailureTestSuite struct {
 func (t *uploadFailureTestSuite) SetupSuite() {
 	log.Print("Inside Setup Suite...[uploadFailureTestSuite]")
 	log.Printf("Test log: %s\n", setup.LogFile())
-	configPath := "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return400_after_256KiB.yaml"
+	configPath := "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return400_on_third_chunk_upload.yaml"
 	emulator_tests.StartProxyServer(configPath)
 
 }
@@ -78,7 +78,7 @@ func (t *uploadFailureTestSuite) TestStreamingWritesFirstChunkUploadFails() {
 	// Write next 4 MB data to file fails due to 3rd chunk upload permanently fails.
 	_, err = fh2.WriteAt(data[:], 4*1024*1024)
 
-
+	
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName,
 		FileName1, string(data[:]), t.T())
