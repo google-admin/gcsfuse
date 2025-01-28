@@ -56,13 +56,13 @@ func (t *uploadFailureTestSuite) TearDownSuite() {
 }
 
 func (t *uploadFailureTestSuite) TestStreamingWritesFirstChunkUploadFails() {
-	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2", "--custom-endpoint=" + proxyEndpoint}
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
 	log.Printf("Running tests with flags: %v", t.flags)
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-	data, err := operations.GenerateRandomData(4 * 1024 * 1024)
+	data, err := operations.GenerateRandomData(2 * 1024 * 1024)
 	if err != nil {
 		t.T().Fatalf("Error in generating data: %v", err)
 	}
@@ -78,7 +78,6 @@ func (t *uploadFailureTestSuite) TestStreamingWritesFirstChunkUploadFails() {
 	// Write next 4 MB data to file fails due to 3rd chunk upload permanently fails.
 	_, err = fh2.WriteAt(data[:], 4*1024*1024)
 
-	
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName,
 		FileName1, string(data[:]), t.T())
