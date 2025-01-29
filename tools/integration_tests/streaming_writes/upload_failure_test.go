@@ -16,7 +16,6 @@ package streaming_writes
 
 import (
 	"log"
-	"os"
 	"testing"
 
 	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
@@ -44,7 +43,9 @@ type uploadFailureTestSuite struct {
 func (t *uploadFailureTestSuite) SetupSuite() {
 	log.Print("Inside Setup Suite...[uploadFailureTestSuite]")
 	log.Printf("Test log: %s\n", setup.LogFile())
-	configPath := "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return400_on_third_chunk_upload.yaml"
+	err := emulator_tests.KillProxyServerProcess(port)
+	log.Printf("Trying to stop the proxy server: [%v]", err)
+	configPath := "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return412_on_second_chunk_upload.yaml"
 	emulator_tests.StartProxyServer(configPath)
 
 }
@@ -55,32 +56,36 @@ func (t *uploadFailureTestSuite) TearDownSuite() {
 	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(port))
 }
 
-func (t *uploadFailureTestSuite) TestStreamingWritesFirstChunkUploadFails() {
-	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
+func (t *uploadFailureTestSuite) TestStreamingWritesSecondChunkUploadFails() {
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=1"}
 	log.Printf("Running tests with flags: %v", t.flags)
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-	data, err := operations.GenerateRandomData(2 * 1024 * 1024)
+	// Generate 5 MB random data.
+	data, err := operations.GenerateRandomData(5 * operations.MiB)
 	if err != nil {
 		t.T().Fatalf("Error in generating data: %v", err)
 	}
+	// Write first 3 MB (say A,B,C) block to file succeeds.
+	// Fuse:[C] -> Go-SDK:[B]-> GCS[A]
+	_, err = fh1.WriteAt(data[:3*operations.MiB], 0)
+	assert.NoError(t.T(), err)
+	// Write 4th 1MB (D) ensures the chunk (B) is uploaded to have enough space for C, D chunk but error may not be seen by D
+	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -fails upload]
+	_, err = fh1.WriteAt(data[3*operations.MiB:4*operations.MiB], 3*operations.MiB)
 
-	// Write 4 MB data to file succeeds.
-	operations.WriteAt(string(data[:]), 0, fh1, t.T())
+	// Write 5th 1MB  sees error propagated via failure of B upload.
+	_, err = fh1.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
+	assert.Error(t.T(), err)
+	// opening new file handle succeeds.
+	fh2 := operations.OpenFile(filePath, t.T())
+	// writes with fh2 also fails.
+	_, err = fh2.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
+	assert.Error(t.T(), err)
+	operations.CloseFileShouldNotThrowError(fh2, t.T())
 
-	fh2, err := os.OpenFile(filePath, os.O_WRONLY, operations.FilePermission_0600)
-
-	if err != nil {
-		t.T().Fatalf("Error in opening file: %v", err)
-	}
-	// Write next 4 MB data to file fails due to 3rd chunk upload permanently fails.
-	_, err = fh2.WriteAt(data[:], 4*1024*1024)
-
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName,
-		FileName1, string(data[:]), t.T())
 }
 
 func TestUploadFailureTestSuite(t *testing.T) {
