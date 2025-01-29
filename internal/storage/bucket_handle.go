@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -270,6 +271,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 }
 
 func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
+	log.Printf("Got error on finalize Upload: %v", err)
 	if err = w.Close(); err != nil {
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {

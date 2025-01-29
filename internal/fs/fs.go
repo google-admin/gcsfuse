@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -2693,7 +2694,7 @@ func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
 	fs.mu.Lock()
-
+	log.Println("Releasing the file hanlde..................")
 	fileHandle := fs.handles[op.Handle].(*handle.FileHandle)
 	// Update the map. We are okay updating the map before destroy is called
 	// since destroy is doing only internal cleanup.
