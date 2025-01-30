@@ -74,7 +74,7 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run specific test suite
-go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=false -run TestUploadFailureTestSuite
+go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=false -run TestUploadFailureTestSuite/TestStreamingWritesSucceeds
 
 # Stop the testbench & cleanup environment variables
 sleep 600

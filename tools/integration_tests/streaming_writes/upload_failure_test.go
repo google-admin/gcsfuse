@@ -57,7 +57,7 @@ func (t *uploadFailureTestSuite) TearDownSuite() {
 }
 
 func (t *uploadFailureTestSuite) TestStreamingWritesSecondChunkUploadFails() {
-	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=1"}
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
 	log.Printf("Running tests with flags: %v", t.flags)
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
@@ -84,10 +84,29 @@ func (t *uploadFailureTestSuite) TestStreamingWritesSecondChunkUploadFails() {
 	// writes with fh2 also fails.
 	_, err = fh2.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
 	assert.Error(t.T(), err)
-	operations.CloseFileShouldNotThrowError(fh2, t.T())
-
+	operations.CloseFileShouldThrowError(fh2, t.T())
+	operations.CloseFileShouldThrowError(fh1, t.T())
+	// Verify that Object is present on GCS.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, string(data[:1*operations.MiB]), t.T())
 }
 
+func (t *uploadFailureTestSuite) TestStreamingWritesSucceeds() {
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
+	log.Printf("Running tests with flags: %v", t.flags)
+	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	// Generate 5 MB random data.
+	data, err := operations.GenerateRandomData(5 * operations.MiB)
+	if err != nil {
+		t.T().Fatalf("Error in generating data: %v", err)
+	}
+	_, err = fh1.WriteAt(data[:3*operations.MiB], 0)
+	assert.NoError(t.T(), err)
+	operations.CloseFileShouldNotThrowError(fh1, t.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, string(data[:3*operations.MiB]), t.T())
+}
 func TestUploadFailureTestSuite(t *testing.T) {
 	suite.Run(t, new(uploadFailureTestSuite))
 }
