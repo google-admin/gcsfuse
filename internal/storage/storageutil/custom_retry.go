@@ -22,10 +22,23 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var count = 0
+
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
-		logger.Infof("Retrying for the error: %v", err)
+		if typed, ok := err.(*googleapi.Error); ok {
+			if typed.Code == 503 && count == 0 {
+				count++
+				b = false
+				logger.Infof("Not Retrying for error: %v", err)
+				return
+			}
+		}
+		if b {
+			logger.Infof("Retrying for error: %v", err)
+			return
+		}
 		return
 	}
 

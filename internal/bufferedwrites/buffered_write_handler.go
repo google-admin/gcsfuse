@@ -17,6 +17,7 @@ package bufferedwrites
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
@@ -200,6 +201,7 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 }
 
 // Flush finalizes the upload.
+<<<<<<< HEAD
 func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	// Fail early if upload already failed.
 	select {
@@ -209,15 +211,21 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 		break
 	}
 
+=======
+func (wh *BufferedWriteHandler) Flush() (*gcs.MinObject, error) {
+	log.Println("Flush called...")
+>>>>>>> d632a7fe6 (testing failure scenarios)
 	// In case it is a truncated file, upload empty blocks as required.
 	err := wh.writeDataForTruncatedSize()
 	if err != nil {
 		return nil, err
 	}
-
+	log.Println("writeDataForTruncatedSize finished...")
 	if wh.current != nil {
+		log.Println("wh.current is not nil")
 		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {
+			log.Println("Upload failed...")
 			return nil, err
 		}
 		wh.current = nil
@@ -225,6 +233,7 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 
 	obj, err := wh.uploadHandler.Finalize()
 	if err != nil {
+		log.Println("Finalize failed... " + err.Error())
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
 	}
 
