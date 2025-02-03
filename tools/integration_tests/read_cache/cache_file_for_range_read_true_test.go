@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,16 +37,26 @@ type cacheFileForRangeReadTrueTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
+	suite.Suite
 }
 
-func (s *cacheFileForRangeReadTrueTest) Setup(t *testing.T) {
+func (t *cacheFileForRangeReadTrueTest) SetupTest() {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
-	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(t.flags, t.ctx, t.storageClient, testDirName)
 }
 
-func (s *cacheFileForRangeReadTrueTest) Teardown(t *testing.T) {
+func (t *cacheFileForRangeReadTrueTest) TeardownTest() {
+	if t.T().Failed() {
+		logs, err := operations.ReadFile(setup.LogFile())
+		if err != nil {
+			t.T().Log("couldn't fetch logs on failure")
+			return
+		}
+		// Log the failure logs.
+		t.T().Log(string(logs))
+	}
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
@@ -54,23 +64,23 @@ func (s *cacheFileForRangeReadTrueTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+func (t *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
+	testFileName := setupFileInTestDir(t.ctx, t.storageClient, testDirName, fileSizeForRangeRead, t.T())
 
 	// Do a random read on file and validate from gcs.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset5000, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(t.ctx, t.storageClient, testFileName, offset5000, t.T())
 	// Wait for the cache to propagate the updates before proceeding to get cache hit.
 	time.Sleep(4 * time.Second)
 	// Read file again from zeroOffset 1000 and validate from gcs.
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(t.ctx, t.storageClient, testFileName, offset1000, t.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t.T())
+	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t.T())
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t.T())
 	// Validate cached content with gcs.
-	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, s.ctx, s.storageClient, t)
+	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, t.ctx, t.storageClient, t.T())
 	// Validate cache size within limit.
-	validateCacheSizeWithinLimit(cacheCapacityForRangeReadTestInMiB, t)
+	validateCacheSizeWithinLimit(cacheCapacityForRangeReadTestInMiB, t.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -90,7 +100,7 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -163,6 +173,6 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 			ts.flags = append(ts.flags, flags.cliFlags...)
 		}
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }
