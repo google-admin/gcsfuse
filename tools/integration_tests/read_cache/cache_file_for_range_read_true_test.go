@@ -47,15 +47,16 @@ func (t *cacheFileForRangeReadTrueTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(t.flags, t.ctx, t.storageClient, testDirName)
 }
 
-func (t *cacheFileForRangeReadTrueTest) TeardownTest() {
+func (t *cacheFileForRangeReadTrueTest) TearDownTest() {
 	if t.T().Failed() {
+		t.T().Logf("Test %s Failed", t.T().Name())
 		logs, err := operations.ReadFile(setup.LogFile())
 		if err != nil {
-			t.T().Log("couldn't fetch logs on failure")
+			t.T().Log("Couldn't fetch logs on failure.")
 			return
 		}
 		// Log the failure logs.
-		t.T().Log(string(logs))
+		t.T().Log("Logs: \n", string(logs))
 	}
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }

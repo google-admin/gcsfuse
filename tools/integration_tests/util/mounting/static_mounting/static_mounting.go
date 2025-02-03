@@ -31,8 +31,7 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	}
 
 	defaultArg = append(defaultArg, "--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
+		"--log-severity=TRACE",
 		"--log-file="+setup.LogFile(),
 		setup.TestBucket(),
 		setup.MntDir())
