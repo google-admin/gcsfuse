@@ -405,7 +405,6 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 func (f *FileInode) RegisterFileHandle(readOnly bool) {
 	if !readOnly {
 		f.writeHandleCount++
-		logger.Infof("#############[New File Handle]Current file handle count %v", f.writeHandleCount)
 	}
 }
 
@@ -420,11 +419,9 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 	}
 
 	f.writeHandleCount--
-	logger.Infof("#############[Removed File Handle]Current file handle count %v", f.writeHandleCount)
 
 	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
 	if f.writeHandleCount == 0 && f.bwh != nil {
-		logger.Infof("#################Current file handle count %v and bwh reinitialize started", f.writeHandleCount)
 		err := f.bwh.Destroy()
 		if err != nil {
 			logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)

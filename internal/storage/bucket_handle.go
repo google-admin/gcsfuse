@@ -242,7 +242,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 				return
 			}
 		}
-		err = fmt.Errorf("[CreateObject] error in closing writer : %w", err)
+		err = fmt.Errorf("error in closing writer : %w", err)
 		return
 	}
 
@@ -278,7 +278,7 @@ func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gc
 				return
 			}
 		}
-		err = fmt.Errorf("[Finalize Upload]error in closing writer : %w", err)
+		err = fmt.Errorf("error in closing writer : %w", err)
 		return
 	}
 

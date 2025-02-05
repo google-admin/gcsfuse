@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
@@ -152,7 +151,6 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 		uh.closeUploadFailureChannel()
 		return nil, fmt.Errorf("FinalizeUpload failed for object %s: %w", uh.objectName, err)
 	}
-	log.Println("Finalized upload succeeded.........................")
 	return obj, nil
 }
 
