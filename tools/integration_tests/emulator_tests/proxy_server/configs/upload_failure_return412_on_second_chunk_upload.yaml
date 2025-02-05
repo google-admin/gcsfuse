@@ -3,4 +3,4 @@ retryConfig:
 - method: JsonCreate
   retryInstruction: "return-412"
   retryCount: 1
-  skipCount: 2
+  skipCount: 3

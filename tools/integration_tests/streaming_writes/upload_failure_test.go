@@ -56,7 +56,7 @@ func (t *uploadFailureTestSuite) TearDownSuite() {
 	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(port))
 }
 
-func (t *uploadFailureTestSuite) TestStreamingWritesSecondChunkUploadFails() {
+func (t *uploadFailureTestSuite) TestStreamingWritesSecondChunkUploadFailure() {
 	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
 	log.Printf("Running tests with flags: %v", t.flags)
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
@@ -72,43 +72,34 @@ func (t *uploadFailureTestSuite) TestStreamingWritesSecondChunkUploadFails() {
 	// Fuse:[C] -> Go-SDK:[B]-> GCS[A]
 	_, err = fh1.WriteAt(data[:3*operations.MiB], 0)
 	assert.NoError(t.T(), err)
-	// Write 4th 1MB (D) ensures the chunk (B) is uploaded to have enough space for C, D chunk but error may not be seen by D
-	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -fails upload]
+
+	// Write 4th 1MB (D) ensures the chunk (B) is uploaded to have enough space for C, D and error is propagated for 4th 1MB (D) Write.
+	// Fuse:[D -> write fails] -> Go-SDK:[C] -> GCS[A, B -> upload fails]
 	_, err = fh1.WriteAt(data[3*operations.MiB:4*operations.MiB], 3*operations.MiB)
 
-	// Write 5th 1MB  sees error propagated via failure of B upload.
+	assert.Error(t.T(), err)
+	// Write 5th 1MB also errors.
 	_, err = fh1.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
 	assert.Error(t.T(), err)
-	// opening new file handle succeeds.
+	// Opening new file handle succeeds.
 	fh2 := operations.OpenFile(filePath, t.T())
-	// writes with fh2 also fails.
+	// Writes with fh2 also fails.
 	_, err = fh2.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
 	assert.Error(t.T(), err)
+	// Closing all file handles to reinitialize bwh.
 	operations.CloseFileShouldThrowError(fh2, t.T())
 	operations.CloseFileShouldThrowError(fh1, t.T())
-	// Verify that Object is present on GCS.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, string(data[:1*operations.MiB]), t.T())
-}
-
-func (t *uploadFailureTestSuite) TestStreamingWritesSucceeds() {
-	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
-	log.Printf("Running tests with flags: %v", t.flags)
-	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-	// Generate 5 MB random data.
-	data, err := operations.GenerateRandomData(5 * operations.MiB)
-	if err != nil {
-		t.T().Fatalf("Error in generating data: %v", err)
-	}
-	_, err = fh1.WriteAt(data[:3*operations.MiB], 0)
+	// Verify that Object is not found on GCS.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	// Opening new file handle and writing to file succeeds.
+	fh3 := operations.OpenFile(filePath, t.T())
+	_, err = fh3.WriteAt(data[:], 0)
 	assert.NoError(t.T(), err)
-	operations.CloseFileShouldNotThrowError(fh1, t.T())
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, string(data[:3*operations.MiB]), t.T())
+	// Validate object content found on GCS.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, string(data), t.T())
 }
 
-func (t *uploadFailureTestSuite) TestStreamingWritesTruncateSmallerWithUploadError() {
+func (t *uploadFailureTestSuite) TestStreamingWritesTruncateToSmallerWhenSecondChunkUploadFailure() {
 	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
 	log.Printf("Running tests with flags: %v", t.flags)
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
@@ -124,20 +115,30 @@ func (t *uploadFailureTestSuite) TestStreamingWritesTruncateSmallerWithUploadErr
 	// Fuse:[C] -> Go-SDK:[B]-> GCS[A]
 	_, err = fh1.WriteAt(data[:3*operations.MiB], 0)
 	assert.NoError(t.T(), err)
-	// Write 4th 1MB (D) ensures the chunk (B) is uploaded to have enough space for C, D chunk but error may not be seen by D
-	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -fails upload]
+
+	// Write 4th 1MB (D) ensures the chunk (B) is uploaded to have enough space for C, D and error is propagated for 4th 1MB (D) Write.
+	// Fuse:[D -> write fails] -> Go-SDK:[C] -> GCS[A, B -> upload fails]
 	_, err = fh1.WriteAt(data[3*operations.MiB:4*operations.MiB], 3*operations.MiB)
 
-	// Write 5th 1MB  sees error propagated via failure of B upload.
-	_, err = fh1.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
 	assert.Error(t.T(), err)
-	// opening new file handle succeeds.
+	// Truncate to smaller size fails.
+	err = fh1.Truncate(1 * operations.MiB)
+	assert.Error(t.T(), err)
+	// Opening new file handle succeeds.
 	fh2 := operations.OpenFile(filePath, t.T())
-	// writes with fh2 also fails.
-	err = fh2.Truncate(1 * operations.MiB)
+	// Write still fails.
+	_, err = fh2.WriteAt(data[3*operations.MiB:4*operations.MiB], 3*operations.MiB)
 	assert.Error(t.T(), err)
+	// Closing all file handles to reinitialize bwh.
 	operations.CloseFileShouldThrowError(fh2, t.T())
 	operations.CloseFileShouldThrowError(fh1, t.T())
+	// Verify that Object is not found on GCS.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+	fh3 := operations.OpenFile(filePath, t.T())
+	_, err = fh3.WriteAt(data[:], 0)
+	assert.NoError(t.T(), err)
+	// Validate object content found on GCS.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, string(data), t.T())
 }
 
 func (t *uploadFailureTestSuite) TestStreamingWritesTruncateBiggerWithUploadError() {

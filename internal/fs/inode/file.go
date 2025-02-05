@@ -140,6 +140,7 @@ func NewFileInode(
 	localFile bool,
 	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
+	logger.Infof("==============================Creating FileInode for file: %v", name)
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -432,6 +433,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
+	logger.Infof("==============================Destroying FileInode for file: %v", f.name)
 	f.destroyed = true
 	if f.localFileCache {
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}

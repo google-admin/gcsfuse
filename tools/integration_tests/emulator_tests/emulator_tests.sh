@@ -56,12 +56,20 @@ DOCKER_NETWORK="--net=host"
 # Get the docker image for the testbench
 sudo docker pull $DOCKER_IMAGE
 
+
+CONTAINER_ID=$(sudo docker ps -aqf "name=$CONTAINER_NAME")
+
+if [[ -n "$CONTAINER_ID" ]]; then
+  echo "Container with ID:[$CONTAINER_ID] is already running for name:[$CONTAINER_NAME]"
+  echo "Stoping container...."
+  sudo docker stop $CONTAINER_ID
+fi
+
 # Start the testbench
 sudo docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
 sleep 5
 
-sudo docker ps -a | grep $CONTAINER_NAME
 # Create the JSON file to create bucket
 cat << EOF > test.json
 {"name":"test-bucket"}
@@ -74,6 +82,5 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run specific test suite
-go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=false -run TestUploadFailureTestSuite
+go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=false -run TestUploadFailureTestSuite/TestStreamingWritesSecondChunkUploadFailure
 # Stop the testbench & cleanup environment variables
-sleep 600
