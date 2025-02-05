@@ -2693,6 +2693,7 @@ func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
 	fs.mu.Lock()
+
 	fileHandle := fs.handles[op.Handle].(*handle.FileHandle)
 	// Update the map. We are okay updating the map before destroy is called
 	// since destroy is doing only internal cleanup.

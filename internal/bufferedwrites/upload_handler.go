@@ -137,6 +137,8 @@ func (uh *UploadHandler) uploader() {
 // Finalize finalizes the upload.
 func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	uh.wg.Wait()
+	close(uh.uploadCh)
+
 	if uh.writer == nil {
 		// Writer may not have been created for empty file creation flow or for very
 		// small writes of size less than 1 block.

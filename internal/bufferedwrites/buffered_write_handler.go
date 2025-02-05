@@ -214,6 +214,7 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if wh.current != nil {
 		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {
