@@ -201,7 +201,6 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 }
 
 // Flush finalizes the upload.
-<<<<<<< HEAD
 func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	// Fail early if upload already failed.
 	select {
@@ -211,10 +210,6 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 		break
 	}
 
-=======
-func (wh *BufferedWriteHandler) Flush() (*gcs.MinObject, error) {
-	log.Println("Flush called...")
->>>>>>> d632a7fe6 (testing failure scenarios)
 	// In case it is a truncated file, upload empty blocks as required.
 	err := wh.writeDataForTruncatedSize()
 	if err != nil {
