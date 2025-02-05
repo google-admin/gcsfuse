@@ -107,6 +107,103 @@ func (t *uploadFailureTestSuite) TestStreamingWritesSucceeds() {
 	operations.CloseFileShouldNotThrowError(fh1, t.T())
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, string(data[:3*operations.MiB]), t.T())
 }
+
+func (t *uploadFailureTestSuite) TestStreamingWritesTruncateSmallerWithUploadError() {
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
+	log.Printf("Running tests with flags: %v", t.flags)
+	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	filePath, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	// Generate 5 MB random data.
+	data, err := operations.GenerateRandomData(5 * operations.MiB)
+	if err != nil {
+		t.T().Fatalf("Error in generating data: %v", err)
+	}
+	// Write first 3 MB (say A,B,C) block to file succeeds.
+	// Fuse:[C] -> Go-SDK:[B]-> GCS[A]
+	_, err = fh1.WriteAt(data[:3*operations.MiB], 0)
+	assert.NoError(t.T(), err)
+	// Write 4th 1MB (D) ensures the chunk (B) is uploaded to have enough space for C, D chunk but error may not be seen by D
+	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -fails upload]
+	_, err = fh1.WriteAt(data[3*operations.MiB:4*operations.MiB], 3*operations.MiB)
+
+	// Write 5th 1MB  sees error propagated via failure of B upload.
+	_, err = fh1.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
+	assert.Error(t.T(), err)
+	// opening new file handle succeeds.
+	fh2 := operations.OpenFile(filePath, t.T())
+	// writes with fh2 also fails.
+	err = fh2.Truncate(1 * operations.MiB)
+	assert.Error(t.T(), err)
+	operations.CloseFileShouldThrowError(fh2, t.T())
+	operations.CloseFileShouldThrowError(fh1, t.T())
+}
+
+func (t *uploadFailureTestSuite) TestStreamingWritesTruncateBiggerWithUploadError() {
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
+	log.Printf("Running tests with flags: %v", t.flags)
+	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	filePath, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	// Generate 5 MB random data.
+	data, err := operations.GenerateRandomData(5 * operations.MiB)
+	if err != nil {
+		t.T().Fatalf("Error in generating data: %v", err)
+	}
+	// Write first 3 MB (say A,B,C) block to file succeeds.
+	// Fuse:[C] -> Go-SDK:[B]-> GCS[A]
+	_, err = fh1.WriteAt(data[:3*operations.MiB], 0)
+	assert.NoError(t.T(), err)
+	// Write 4th 1MB (D) ensures the chunk (B) is uploaded to have enough space for C, D chunk but error may not be seen by D
+	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -fails upload]
+	_, err = fh1.WriteAt(data[3*operations.MiB:4*operations.MiB], 3*operations.MiB)
+
+	// Write 5th 1MB  sees error propagated via failure of B upload.
+	_, err = fh1.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
+	assert.Error(t.T(), err)
+	// opening new file handle succeeds.
+	fh2 := operations.OpenFile(filePath, t.T())
+	// writes with fh2 also fails.
+	err = fh2.Truncate(5 * operations.MiB)
+	assert.NoError(t.T(), err)
+	operations.CloseFileShouldThrowError(fh2, t.T())
+	operations.CloseFileShouldThrowError(fh1, t.T())
+}
+
+func (t *uploadFailureTestSuite) TestStreamingWritesSyncWithUploadError() {
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
+	log.Printf("Running tests with flags: %v", t.flags)
+	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	// Generate 5 MB random data.
+	data, err := operations.GenerateRandomData(6 * operations.MiB)
+	if err != nil {
+		t.T().Fatalf("Error in generating data: %v", err)
+	}
+	// Emulating failure on 2nd Chunk upload.
+	// Write the first 1 MB (say A) block to the file succeeds.
+	// Fuse:[A] -> Go-SDK:[]-> GCS[]
+	_, err = fh1.WriteAt(data[:2*operations.MiB], 0)
+	assert.NoError(t.T(), err)
+	err = fh1.Sync() // Sync ensures 2 MB is uploaded.
+	assert.NoError(t.T(), err)
+	// Write the second 2 MB (say B) block to the file succeeds.
+	// Fuse:[B] -> Go-SDK:[]-> GCS[A]
+	_, err = fh1.WriteAt(data[2*operations.MiB:4*operations.MiB], 2*operations.MiB)
+	assert.NoError(t.T(), err)
+	err = fh1.Sync() // Sync ensures 2nd 1 MB (B) is uploaded and failure is propagated and returned?
+	assert.NoError(t.T(), err)
+	err = fh1.Sync() // Sync should fail now.
+	assert.NoError(t.T(), err)
+	// Write 3rd 1MB (C) block to file fails.
+	// Fuse:[] -> Go-SDK:[]-> GCS[A, B -failed]
+	_, err = fh1.WriteAt(data[4*operations.MiB:6*operations.MiB], 4*operations.MiB)
+	assert.NoError(t.T(), err)
+}
 func TestUploadFailureTestSuite(t *testing.T) {
 	suite.Run(t, new(uploadFailureTestSuite))
 }
