@@ -22,8 +22,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var count = 0
-
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
