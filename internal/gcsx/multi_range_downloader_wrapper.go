@@ -45,9 +45,10 @@ func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinO
 	// In case of a local inode, MRDWrapper would be created with an empty minObject (i.e. with a minObject without any information)
 	// and when the object is actually created, MRDWrapper would be updated using SetMinObject method.
 	return MultiRangeDownloaderWrapper{
-		clock:  clock,
-		bucket: bucket,
-		object: object,
+		clock:     clock,
+		bucket:    bucket,
+		object:    object,
+		createMRD: true,
 	}, nil
 }
 
@@ -73,6 +74,10 @@ type MultiRangeDownloaderWrapper struct {
 	cancelCleanup context.CancelFunc
 	// Used for waiting for timeout (helps us in mocking the functionality).
 	clock clock.Clock
+	// Used to determine whether we should create MRD.
+	createMRD bool
+	// Mutex to synchronize access over createMRD.
+	muCreateMRD sync.Mutex
 }
 
 // Sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
@@ -157,18 +162,26 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() {
 	go closeMRD(ctx)
 }
 
-// Ensures that MultiRangeDownloader exists, creating it if it does not exist.
+// Ensures that MultiRangeDownloader exists, creating it if needed.
 func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err error) {
+	mrdWrapper.muCreateMRD.Lock()
+	defer mrdWrapper.muCreateMRD.Unlock()
+
+	if !mrdWrapper.createMRD {
+		return
+	}
+
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
-
-	if mrdWrapper.Wrapped == nil {
-		mrdWrapper.Wrapped, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-			Name:           mrdWrapper.object.Name,
-			Generation:     mrdWrapper.object.Generation,
-			ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
-		})
+	mrdWrapper.Wrapped, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+		Name:           mrdWrapper.object.Name,
+		Generation:     mrdWrapper.object.Generation,
+		ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
+	})
+	// In case of successful creation of MRD, setting createMRD to false. It will remain true otherwise.
+	if err == nil {
+		mrdWrapper.createMRD = false
 	}
 	return
 }
@@ -185,7 +198,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	err = mrdWrapper.ensureMultiRangeDownloader()
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
-		mrdWrapper.Wrapped = nil
 		return
 	}
 
@@ -220,6 +232,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 
 		if e != nil && e != io.EOF {
 			e = fmt.Errorf("Error in Add Call: %w", e)
+			mrdWrapper.muCreateMRD.Lock()
+			mrdWrapper.createMRD = true
+			mrdWrapper.muCreateMRD.Unlock()
 		}
 	})
 
