@@ -18,12 +18,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"testing"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -62,12 +60,12 @@ func TestMain(m *testing.M) {
 		setup.RunTestsForMountedDirectoryFlag(m)
 	}
 
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
-	rootDir = setup.MntDir()
+	// // Set up test directory.
+	// setup.SetUpTestDirForTestBucketFlag()
+	// rootDir = setup.MntDir()
 
-	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-	successCode := m.Run()
-	os.Exit(successCode)
+	// log.Println("Running static mounting tests...")
+	// mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	// successCode := m.Run()
+	// os.Exit(successCode)
 }

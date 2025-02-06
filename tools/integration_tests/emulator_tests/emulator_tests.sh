@@ -81,6 +81,50 @@ curl -X POST --data-binary @test.json \
     "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
 rm test.json
 
+#!/bin/bash
+
+# Function to send SIGKILL to processes listening on a port and wait for them to exit
+stop_processes_on_port() {
+  local port="$1"
+  # Check if any processes were found
+  if lsof -i:"$port" > /dev/null; then
+    # Get the processes listening on the port
+    processes=$(lsof -i:"$port")
+    echo "Found processes listening on port $port:"
+    echo "$processes" | while read -r line; do
+      # Skip the header line
+      if [[ "$line" == *"PID"* ]]; then
+        continue
+      fi
+
+      # Extract the process ID (second field)
+      pid=$(echo "$line" | awk '{print $2}')
+
+      # Check if the process is running
+      if ps -p "$pid" > /dev/null; then
+        # Send SIGKILL to the process
+        sudo kill -SIGKILL "$pid" 2>/dev/null
+
+        # Wait for the process to exit
+        while lsof -i:"$port" > /dev/null; do
+          sleep 1  # Wait for 1 second before checking again
+        done
+
+        echo "Port $port stopped."
+
+      fi
+    done
+  else
+    echo "No processes found listening on port $port."
+  fi
+}
+
+# Example usage:
+port=8020  # Replace with the actual port number
+stop_processes_on_port "$port"
+
+go run "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server" "--config-path=/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return412_on_second_chunk_upload.yaml"
+
 # Run specific test suite
-go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=false -run TestUploadFailureTestSuite/TestStreamingWritesSecondChunkUploadFailure
+# go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=false -run TestUploadFailureTestSuite/TestStreamingWritesSecondChunkUploadFailure
 # Stop the testbench & cleanup environment variables

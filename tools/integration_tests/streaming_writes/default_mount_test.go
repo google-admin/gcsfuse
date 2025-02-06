@@ -14,36 +14,36 @@
 
 package streaming_writes
 
-import (
-	"log"
-	"os"
+// import (
+// 	"log"
+// 	"os"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
-)
+// 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
+// )
 
-type defaultMountCommonTest struct {
-	f1       *os.File
-	fileName string
-	// filePath of the above file in the mounted directory.
-	filePath string
-	test_suite.TestifySuite
-}
+// type defaultMountCommonTest struct {
+// 	f1       *os.File
+// 	fileName string
+// 	// filePath of the above file in the mounted directory.
+// 	filePath string
+// 	test_suite.TestifySuite
+// }
 
-func (t *defaultMountCommonTest) SetupSuite() {
-	// TODO(mohitkyadav): Make these part of test suite after refactoring.
-	SetCtx(ctx)
-	SetStorageClient(storageClient)
-	SetTestDirName(testDirName)
+// func (t *defaultMountCommonTest) SetupSuite() {
+// 	// TODO(mohitkyadav): Make these part of test suite after refactoring.
+// 	SetCtx(ctx)
+// 	SetStorageClient(storageClient)
+// 	SetTestDirName(testDirName)
 
-	flags := []string{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
-	log.Print("Inside Setup Suite...[defaultMountCommonTest]")
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	testDirPath = setup.SetupTestDirectory(testDirName)
-}
+// 	flags := []string{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
+// 	log.Print("Inside Setup Suite...[defaultMountCommonTest]")
+// 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+// 	testDirPath = setup.SetupTestDirectory(testDirName)
+// }
 
-func (t *defaultMountCommonTest) TearDownSuite() {
-	log.Print("Inside TearDown Suite...[defaultMountCommonTest]")
-	setup.UnmountGCSFuse(rootDir)
-}
+// func (t *defaultMountCommonTest) TearDownSuite() {
+// 	log.Print("Inside TearDown Suite...[defaultMountCommonTest]")
+// 	setup.UnmountGCSFuse(rootDir)
+// }

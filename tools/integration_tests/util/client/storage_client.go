@@ -50,7 +50,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
-		client, err = storage.NewClient(ctx)
+		client, err = storage.NewClient(ctx, option.WithEndpoint("http://localhost:8020"))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)

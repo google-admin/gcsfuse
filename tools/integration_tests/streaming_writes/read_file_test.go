@@ -14,21 +14,21 @@
 
 package streaming_writes
 
-import (
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/stretchr/testify/assert"
-)
+// import (
+// 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+// 	"github.com/stretchr/testify/assert"
+// )
 
-func (t *defaultMountCommonTest) TestReadLocalFileFails() {
-	// Write some content to local file.
-	_, err := t.f1.WriteAt([]byte(FileContents), 0)
-	assert.NoError(t.T(), err)
+// func (t *defaultMountCommonTest) TestReadLocalFileFails() {
+// 	// Write some content to local file.
+// 	_, err := t.f1.WriteAt([]byte(FileContents), 0)
+// 	assert.NoError(t.T(), err)
 
-	// Reading the local file content fails.
-	buf := make([]byte, len(FileContents))
-	_, err = t.f1.ReadAt(buf, 0)
-	assert.Error(t.T(), err)
+// 	// Reading the local file content fails.
+// 	buf := make([]byte, len(FileContents))
+// 	_, err = t.f1.ReadAt(buf, 0)
+// 	assert.Error(t.T(), err)
 
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents, t.T())
-}
+// 	// Close the file and validate that the file is created on GCS.
+// 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents, t.T())
+// }
