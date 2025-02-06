@@ -17,7 +17,6 @@ package operations_test
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -142,10 +141,6 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-
-	if setup.IsZonalBucketRun() {
-		fmt.Println("Running with zonal bucket mode ...")
-	}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
