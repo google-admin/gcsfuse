@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -59,7 +58,6 @@ var (
 	gcsObjectsToBeDeletedEventually []string
 	storageClient                   *storage.Client
 	ctx                             context.Context
-	storageControlClient            *control.StorageControlClient
 )
 
 func setup_testdata(m *testing.M) error {
@@ -196,25 +194,13 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	var err error
-	// Create common storage client to be used in test.
-	closeStorageControlClient := client.CreateControlClientWithCancel(&ctx, &storageControlClient)
-	defer func() {
-		err := closeStorageControlClient()
-		if err != nil {
-			log.Fatalf("closeStorageControlClient failed: %v", err)
-		}
-	}()
-
-	bucketType, err := setup.LookupBucketType(storageControlClient)
-	if err != nil {
-		log.Fatalf("LookupBucketType : %v", err)
+	ctx = context.Background()
+	if storageClient, err = client.CreateStorageClient(ctx); err != nil {
+		log.Fatalf("Error creating storage client: %v\n", err)
 	}
-
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, bucketType, &storageClient)
 	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
+		if err := storageClient.Close(); err != nil {
+			log.Printf("failed to close storage client: %v", err)
 		}
 	}()
 

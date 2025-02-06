@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -41,10 +40,9 @@ var (
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
-	rootDir              string
-	storageClient        *storage.Client
-	ctx                  context.Context
-	storageControlClient *control.StorageControlClient
+	rootDir       string
+	storageClient *storage.Client
+	ctx           context.Context
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -70,20 +68,8 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Create common storage client to be used in test.
-	closeStorageControlClient := client.CreateControlClientWithCancel(&ctx, &storageControlClient)
-	defer func() {
-		err := closeStorageControlClient()
-		if err != nil {
-			log.Fatalf("closeStorageControlClient failed: %v", err)
-		}
-	}()
-
-	bucketType, err := setup.LookupBucketType(storageControlClient)
-	if err != nil {
-		log.Fatalf("LookupBucketType : %v", err)
-	}
-
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, bucketType, &storageClient)
+	ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {

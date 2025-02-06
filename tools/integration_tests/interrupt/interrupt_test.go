@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -40,23 +39,8 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	var storageClient *storage.Client
-	var storageControlClient *control.StorageControlClient
 	ctx := context.Background()
-	// Create common storage client to be used in test.
-	closeStorageControlClient := client.CreateControlClientWithCancel(&ctx, &storageControlClient)
-	defer func() {
-		err := closeStorageControlClient()
-		if err != nil {
-			log.Fatalf("closeStorageControlClient failed: %v", err)
-		}
-	}()
-
-	bucketType, err := setup.LookupBucketType(storageControlClient)
-	if err != nil {
-		log.Fatalf("LookupBucketType : %v", err)
-	}
-
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, bucketType, &storageClient)
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {

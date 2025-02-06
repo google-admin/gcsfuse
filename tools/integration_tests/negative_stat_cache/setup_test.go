@@ -71,24 +71,18 @@ func TestMain(m *testing.M) {
 
 	// Create common storage client to be used in test.
 	ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 	closeStorageControlClient := client.CreateControlClientWithCancel(&ctx, &storageControlClient)
 	defer func() {
 		err := closeStorageControlClient()
 		if err != nil {
 			log.Fatalf("closeStorageControlClient failed: %v", err)
-		}
-	}()
-
-	bucketType, err := setup.LookupBucketType(storageControlClient)
-	if err != nil {
-		log.Fatalf("LookupBucketType : %v", err)
-	}
-
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, bucketType, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
 

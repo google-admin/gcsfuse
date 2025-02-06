@@ -19,7 +19,6 @@ import (
 	"log"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -59,9 +58,9 @@ func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, m *testing.M) (succes
 	return
 }
 
-func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing.M, bucketType *gcs.BucketType) (successCode int) {
+func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing.M) (successCode int) {
 	ctx := context.Background()
-	storageClient, err := client.CreateStorageClient(ctx, bucketType)
+	storageClient, err := client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Fatalf("Error creating storage client: %v\n", err)
 	}
@@ -96,10 +95,10 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 	return
 }
 
-func RunTests(flags [][]string, dirName string, m *testing.M, bucketType *gcs.BucketType) (successCode int) {
+func RunTests(flags [][]string, dirName string, m *testing.M) (successCode int) {
 	log.Println("Running only dir mounting tests...")
 
-	successCode = executeTestsForOnlyDirMounting(flags, dirName, m, bucketType)
+	successCode = executeTestsForOnlyDirMounting(flags, dirName, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
