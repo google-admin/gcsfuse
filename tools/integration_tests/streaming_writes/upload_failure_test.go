@@ -18,6 +18,7 @@ import (
 	"log"
 	"testing"
 
+	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -42,28 +43,28 @@ type uploadFailureTestSuite struct {
 func (t *uploadFailureTestSuite) SetupSuite() {
 	log.Print("Inside Setup Suite...[uploadFailureTestSuite]")
 	log.Printf("Test log: %s\n", setup.LogFile())
-	//err := emulator_tests.KillProxyServerProcess(port)
-	//log.Printf("Trying to stop the proxy server: [%v]", err)
-	//configPath := "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return412_on_second_chunk_upload.yaml"
-	//emulator_tests.StartProxyServer(configPath)
-
 }
 
-func (t *uploadFailureTestSuite) TearDownSuite() {
-	log.Print("Inside TearDown Suite...[uploadFailureTestSuite]")
-	//setup.UnmountGCSFuse(rootDir)
-	//assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(port))
+func (t *uploadFailureTestSuite) SetupTest() {
+	err := emulator_tests.KillProxyServerProcess(port)
+	log.Printf("Trying to stop the proxy server: [%v]", err)
+	configPath := "proxy_server_configs/upload_failure_return412_on_second_chunk_upload.yaml"
+	emulator_tests.StartProxyServer(configPath)
+}
+
+func (t *uploadFailureTestSuite) TearDownTest() {
+	log.Print("Inside TearDownTest")
+	setup.UnmountGCSFuse(rootDir)
+	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(port))
 }
 
 func (t *uploadFailureTestSuite) TestStreamingWritesSecondChunkUploadFailure() {
-	//t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
-	//log.Printf("Running tests with flags: %v", t.flags)
-	//setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
+	t.flags = []string{"--log-severity=TRACE", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
+	log.Printf("Running tests with flags: %v", t.flags)
+	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
-	log.Println("testDirPath: " + testDirPath)
 	// Create a local file.
 	filePath, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-	log.Println("filePath:" + filePath)
 	// Generate 5 MB random data.
 	data, err := operations.GenerateRandomData(5 * operations.MiB)
 	if err != nil {
@@ -88,6 +89,7 @@ func (t *uploadFailureTestSuite) TestStreamingWritesSecondChunkUploadFailure() {
 	assert.Error(t.T(), err)
 	// Closing all file handles to reinitialize bwh.
 	operations.CloseFileShouldThrowError(fh2, t.T())
+
 	operations.CloseFileShouldThrowError(fh1, t.T())
 	// Verify that Object is not found on GCS.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())

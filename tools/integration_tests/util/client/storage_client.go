@@ -49,8 +49,10 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 			return nil, fmt.Errorf("unable to fetch token-source for TPC: %w", err)
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
+	} else if setup.TestOnCustomEndpoint() != "" {
+		client, err = storage.NewClient(ctx, option.WithEndpoint(setup.TestOnCustomEndpoint()))
 	} else {
-		client, err = storage.NewClient(ctx, option.WithEndpoint("http://localhost:8020"))
+		client, err = storage.NewClient(ctx)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)

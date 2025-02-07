@@ -123,8 +123,6 @@ stop_processes_on_port() {
 port=8020  # Replace with the actual port number
 stop_processes_on_port "$port"
 
-go run "/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server" "--config-path=/usr/local/google/home/mohitkyadav/gcsfuse/tools/integration_tests/emulator_tests/proxy_server/configs/upload_failure_return412_on_second_chunk_upload.yaml"
-
 # Run specific test suite
 # go test ./tools/integration_tests/streaming_writes/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=false -run TestUploadFailureTestSuite/TestStreamingWritesSecondChunkUploadFailure
 # Stop the testbench & cleanup environment variables
