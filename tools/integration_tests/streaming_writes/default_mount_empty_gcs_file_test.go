@@ -14,41 +14,41 @@
 
 package streaming_writes
 
-// import (
-// 	"path"
-// 	"testing"
+import (
+	"path"
+	"testing"
 
-// 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-// 	"github.com/stretchr/testify/suite"
-// )
+	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/suite"
+)
 
-// type defaultMountEmptyGCSFile struct {
-// 	defaultMountCommonTest
-// 	suite.Suite
-// }
+type defaultMountEmptyGCSFile struct {
+	defaultMountCommonTest
+	suite.Suite
+}
 
-// func (t *defaultMountEmptyGCSFile) SetupTest() {
-// 	t.createEmptyGCSFile()
-// }
+func (t *defaultMountEmptyGCSFile) SetupTest() {
+	t.createEmptyGCSFile()
+}
 
-// func (t *defaultMountEmptyGCSFile) SetupSubTest() {
-// 	t.createEmptyGCSFile()
-// }
+func (t *defaultMountEmptyGCSFile) SetupSubTest() {
+	t.createEmptyGCSFile()
+}
 
-// func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
-// 	t.fileName = FileName1 + setup.GenerateRandomString(5)
-// 	// Create an empty file on GCS.
-// 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
-// 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "", t.T())
-// 	t.filePath = path.Join(testDirPath, t.fileName)
-// 	t.f1 = operations.OpenFile(t.filePath, t.T())
-// }
+func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
+	t.fileName = FileName1 + setup.GenerateRandomString(5)
+	// Create an empty file on GCS.
+	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "", t.T())
+	t.filePath = path.Join(testDirPath, t.fileName)
+	t.f1 = operations.OpenFile(t.filePath, t.T())
+}
 
-// // Executes all tests that run with single streamingWrites configuration for empty GCS Files.
-// func TestDefaultMountEmptyGCSFileTest(t *testing.T) {
-// 	s := new(defaultMountEmptyGCSFile)
-// 	s.defaultMountCommonTest.TestifySuite = &s.Suite
-// 	suite.Run(t, s)
-// }
+// Executes all tests that run with single streamingWrites configuration for empty GCS Files.
+func TestDefaultMountEmptyGCSFileTest(t *testing.T) {
+	s := new(defaultMountEmptyGCSFile)
+	s.defaultMountCommonTest.TestifySuite = &s.Suite
+	suite.Run(t, s)
+}
