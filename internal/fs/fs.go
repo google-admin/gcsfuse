@@ -986,8 +986,6 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	}
 	if child != nil {
 		return
-	} else {
-		logger.Infof("Failed here because it was suppose to exist.")
 	}
 
 	// If the requested child is not a localFileInode, continue with the existing
@@ -1062,7 +1060,6 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 	var maxTriesToLookupInode = 3
 	for n := 0; n < maxTriesToLookupInode; n++ {
 		child = fs.localFileInodes[fileName]
-		logger.Infof("FileName in lookUpLocalFileInode: %v", fileName)
 
 		if child == nil {
 			return
@@ -1175,7 +1172,6 @@ func (fs *fileSystem) flushFile(
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
 		fs.mu.Lock()
-		logger.Infof("Deleted FileInode for file: %v", f.Name())
 		delete(fs.localFileInodes, f.Name())
 		fs.mu.Unlock()
 		return err
@@ -1206,7 +1202,6 @@ func (fs *fileSystem) syncFile(
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
 		fs.mu.Lock()
-		logger.Infof("Deleted FileInode for file: %v", f.Name())
 		delete(fs.localFileInodes, f.Name())
 		fs.mu.Unlock()
 		return err
@@ -1250,7 +1245,6 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 			delete(fs.implicitDirInodes, name)
 		}
 		if fs.localFileInodes[name] == in {
-			logger.Infof("Deleted FileInode for file: %v", name)
 			delete(fs.localFileInodes, name)
 		}
 		if fs.folderInodes[name] == in {
@@ -1451,7 +1445,6 @@ func (fs *fileSystem) LookUpInode(
 		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
-	logger.Infof("Inside LookUpInode.....")
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1460,7 +1453,6 @@ func (fs *fileSystem) LookUpInode(
 	// Find or create the child inode.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
-		logger.Infof("Returned from LookUpInode [%v].....", err)
 		return err
 	}
 
@@ -1728,7 +1720,6 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 				return
 			}
 			// fs.mu lock is already taken
-			logger.Infof("Deleted FileInode for file: %v", child.Name())
 			delete(fs.localFileInodes, child.Name())
 		}
 		// We need to release the filesystem lock before acquiring the inode lock.
@@ -1789,8 +1780,6 @@ func (fs *fileSystem) CreateFile(
 	} else {
 		child, err = fs.createLocalFile(ctx, op.Parent, op.Name)
 	}
-	_, ok := fs.localFileInodes[child.Name()]
-	logger.Infof("Child [%v], OK [%v]", child.Name(), ok)
 
 	if err != nil {
 		return err
@@ -2632,13 +2621,8 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	_, ok := fs.localFileInodes[in.Name()]
-	logger.Infof("Child [%v], OK [%v]", in.Name(), ok)
-
 	// Serve the request.
 	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
-		_, ok := fs.localFileInodes[in.Name()]
-		logger.Infof("Error case Child [%v], OK [%v]", in.Name(), ok)
 		return err
 	}
 
