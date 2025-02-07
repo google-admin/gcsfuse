@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -50,7 +51,11 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
-		client, err = storage.NewClient(ctx)
+		if setup.IsZonalBucketRun() {
+			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+		} else {
+			client, err = storage.NewClient(ctx)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
@@ -123,6 +128,17 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	return string(content), nil
 }
 
+func NewWriterExt(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) *storage.Writer {
+	wc := o.NewWriter(ctx)
+	if setup.IsZonalBucketRun() {
+		attrs, _ := client.Bucket(o.BucketName()).Attrs(ctx)
+		if attrs.StorageClass == "RAPID" {
+			wc.Append = true
+		}
+	}
+	return wc
+}
+
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
@@ -132,7 +148,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	}
 
 	// Upload an object with storage.Writer.
-	wc := o.NewWriter(ctx)
+	wc := NewWriterExt(ctx, o, client)
 	if _, err := io.WriteString(wc, content); err != nil {
 		return fmt.Errorf("io.WriteSTring: %w", err)
 	}
@@ -279,7 +295,7 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(objectName)
-	w := obj.NewWriter(ctx)
+	w := NewWriterExt(ctx, obj, client)
 	defer func() {
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
