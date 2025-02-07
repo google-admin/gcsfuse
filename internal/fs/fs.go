@@ -1134,7 +1134,6 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 // LOCKS_REQUIRED(f)
 func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
-	logger.Infof("Deleted FileInode for file: %v", f.Name())
 	delete(fs.localFileInodes, f.Name())
 	if _, ok := fs.generationBackedInodes[f.Name()]; !ok {
 		fs.generationBackedInodes[f.Name()] = f
